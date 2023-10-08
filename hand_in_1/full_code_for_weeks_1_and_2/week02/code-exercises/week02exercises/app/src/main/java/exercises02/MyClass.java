@@ -1,30 +1,44 @@
 package main.java.exercises01;
 
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class MyClass {
-    private Object aiai = new Object(); // no longer used
-    private ReadWriteLock lock = new ReentrantReadWriteLock(); // had to use the reentrant lock to divide it into
-                                                               // readers and writers
+    // Firsts: create a java intrinsic lock and a condition
+    private Object lock = new Object(); // no longer used
+    private Condition writerActive = new ReentrantLock().newCondition();
+    private Condition noWriterActive = new ReentrantLock().newCondition();
+
+    // Second: create a boolean to check the condition
+    private boolean writer = null;
+
     private int sharedValue = 42;
 
-    // this method of thisclass will work as a reader
+    // READER METHOD
     public int getSharedValue() {
-        lock.readLock().lock();
-        try {
-            // Read data from the shared resource
+        synchronized (lock) {
+            if (writerActive) {
+                System.out.println("Writer active! We wait");
+                noWriterActive.await();
+            }
+
             return this.sharedValue;
-        } finally {
-            lock.readLock().unlock();
+
         }
+
     }
 
-    // this method of thisclass will work as a writer
+    // WRITER METHOD
     public void setSharedValue(int sharedValue) {
-        lock.writeLock().lock();
-        this.sharedValue = sharedValue;
-        lock.writeLock().unlock();
+        // Theres a writer active
+        synchronized (lock) {
+            writerActive.signalAll();
+            this.sharedValue = sharedValue;
+            noWriterActive.signalAll();
+        }
+
     }
 
     public static void main(String[] args) {
