@@ -10,12 +10,13 @@ public class MonitorClass {
     // Firsts: create a java intrinsic lock and a condition
     private Object lock = new Object(); // no longer used
 
-    private Condition condition = new ReentrantLock().newCondition(); // this will be given as a signal by the
-                                                                      // writers when they done
+    // this will be given as a signal by the writers when they done
 
     // Second: the booleans help check the conditions
     private boolean writerActive = false;
     private int readersActive = 0;
+    // private int readerAcquired = 0;
+    // private int readerReleased = 0;
 
     // Third is the main shared value
     private int sharedValue = 42;
@@ -26,9 +27,12 @@ public class MonitorClass {
                               // before this
             while (writerActive) {
                 System.out.println("Writer active! We wait");
-                condition.await();
+                this.wait();
             }
             readersActive = readersActive + 1;
+            /*
+             * readerAcquired++;
+             */
 
         }
 
@@ -38,9 +42,10 @@ public class MonitorClass {
     // What are the conditions for unlocking?
     public void readUnLock() {
         synchronized (lock) {
+            // readerReleased++;
             readersActive = readersActive - 1;
             if (readersActive == 0) {
-                condition.signalAll();
+                this.notifyAll();
             }
 
         }
@@ -51,11 +56,15 @@ public class MonitorClass {
     public void writeLock() {
         // Theres a writer active
         synchronized (lock) {
-            while (writerActive || readersActive > 0) { // while another writer is active or there are any readers
-                condition.await(); // wait
+            while (writerActive) { // while another writer is active or there are any readers
+                this.wait(); // wait
             }
+
             writerActive = true;
 
+            while (readersActive > 0) {
+                this.wait();
+            }
         }
 
     }
@@ -64,13 +73,17 @@ public class MonitorClass {
     public void writeUnlock() {
         synchronized (lock) {
             writerActive = false;
-            condition.signalAll();
+            this.notifyAll();
         }
     }
 
     // method to get the shared value
     public int getSharedValue() {
         return this.sharedValue;
+    }
+
+    public void setSharedValue(int newval) {
+        this.sharedValue = newval;
     }
 
     public static void main(String[] args) {
