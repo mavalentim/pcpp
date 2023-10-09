@@ -8,7 +8,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class MonitorClass {
 
     // Firsts: create a java intrinsic lock and a condition
-    private Object lock = new Object(); // no longer used
 
     // this will be given as a signal by the writers when they done
 
@@ -22,59 +21,52 @@ public class MonitorClass {
     private int sharedValue = 42;
 
     // READER METHOD LOCKING MECHANISM
-    public void readLock() {
-        synchronized (lock) { // this lock prevents another thread from starting simultaneously something
-                              // before this
-            while (writerActive) {
-                System.out.println("Writer active! We wait");
-                this.wait();
-            }
-            readersActive = readersActive + 1;
-            /*
-             * readerAcquired++;
-             */
-
+    public synchronized void readLock() {
+        // this lock prevents another thread from starting simultaneously something
+        // before this
+        while (writerActive) {
+            System.out.println("Writer active! We wait");
+            this.wait();
         }
+        readersActive = readersActive + 1;
+        /*
+         * readerAcquired++;
+         */
 
     }
 
     // READER METHOD unLOCKING MECHANISM
     // What are the conditions for unlocking?
-    public void readUnLock() {
-        synchronized (lock) {
-            // readerReleased++;
-            readersActive = readersActive - 1;
-            if (readersActive == 0) {
-                this.notifyAll();
-            }
+    public synchronized void readUnLock() {
 
+        // readerReleased++;
+        readersActive = readersActive - 1;
+        if (readersActive == 0) {
+            this.notifyAll();
         }
 
     }
 
     // WRITER METHOD
-    public void writeLock() {
+    public synchronized void writeLock() {
         // Theres a writer active
-        synchronized (lock) {
-            while (writerActive) { // while another writer is active or there are any readers
-                this.wait(); // wait
-            }
 
-            writerActive = true;
+        while (writerActive) { // while another writer is active or there are any readers
+            this.wait(); // wait
+        }
 
-            while (readersActive > 0) {
-                this.wait();
-            }
+        writerActive = true;
+
+        while (readersActive > 0) {
+            this.wait();
         }
 
     }
 
     // write a method like the above but for unlocking
-    public void writeUnlock() {
-        synchronized (lock) {
-            writerActive = false;
-            this.notifyAll();
-        }
+    public synchronized void writeUnlock() {
+        writerActive = false;
+        this.notifyAll();
     }
 
     // method to get the shared value
