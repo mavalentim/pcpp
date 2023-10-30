@@ -3,8 +3,6 @@
 
 package exercises07;
 
-import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 // Very likely you will need some imports here
@@ -14,44 +12,57 @@ class ReadWriteCASLock implements SimpleRWTryLockInterface {
   // first super important field is who the fuck is holding this
   private AtomicReference<Holders> holder = new AtomicReference<Holders>();
 
-  // This feels reentrant to me
   public boolean readerTryLock() {
-
+    // had to declare them before
     Thread thisThread;
     ReaderList thisThreadReaderList;
-    ReaderList updatedReaderList;
-    /* ReaderList prevReaderList; */
 
-    do {
-      thisThread = Thread.currentThread();
-      thisThreadReaderList = new ReaderList(thisThread);
-      Holders currentHolder = holder.get(); // idk if its another reader holding this
-      if (currentHolder instanceof ReaderList) {
-        // then i can cast it
-        updatedReaderList = (ReaderList) currentHolder;
-        // and add this readerList
-        updatedReaderList.add(thisThreadReaderList);
-        holder.set(updatedReaderList);
-      }
+    if (!(holder.get() instanceof Writer)) { // if didnt get the lock cause theres a writer, quit, if because theres a
+                                             // reader dont quit
+      ReaderList expectedOldReaderList = null;
+      ReaderList updatedReaderList = null;
 
-    } while (!(holder.compareAndSet(null, thisThreadReaderList) || holder.get() instanceof ReaderList));
-    return true;
+      do {
+        // this has to be repeated in case theres another ReaderList being written
+        thisThread = Thread.currentThread();
+        thisThreadReaderList = new ReaderList();
+        thisThreadReaderList.add(thisThread); // set with only this thread
+        Holders currentHolder = holder.get(); // idk if its another reader holding this
+        if (currentHolder instanceof ReaderList) { // if theres already a set of threads there
+          // then i can cast it
+          expectedOldReaderList = (ReaderList) currentHolder;
+          updatedReaderList = (ReaderList) currentHolder;
+          // and add this readerList
+          updatedReaderList.add(thisThread);
+
+        }
+
+        // i have to do the old one stuff again
+
+      } while (holder.compareAndSet(null, thisThreadReaderList)
+          || holder.compareAndSet(expectedOldReaderList, updatedReaderList));
+      return true;
+    }
+    return false;
 
   }
 
   public void readerUnlock() {
 
+    ReaderList newestReaderList = null;
+    ReaderList updatedReaderList = null;
     do {
+      Thread thisThread = Thread.currentThread();
       Holders currentHolder = holder.get();
       if (currentHolder instanceof ReaderList) {
-        // then i can cast it
-        ReaderList updatedReaderList = (ReaderList) currentHolder;
-        // and remove this readerList (method not fully implemented)
-        updatedReaderList.remove(thisThreadReaderList);
-        holder.set(updatedReaderList);
+        newestReaderList = (ReaderList) currentHolder;
+        updatedReaderList = (ReaderList) currentHolder; // newest readerlist we know
+
+        updatedReaderList.remove(thisThread);
+
       }
 
-    } while (holder.get() == null && holder.get() instanceof ReaderList);
+    } while (holder.compareAndSet(newestReaderList, updatedReaderList));
 
   }
 

@@ -52,7 +52,7 @@ class Histogram1 implements Histogram {
     throw new UnsupportedOperationException("Unimplemented method 'getAndClear'");
   }
 
-  public int getMyset() {
-    return myset.size();
+  public HashSet<String> getMyset() {
+    return myset;
   }
 }
