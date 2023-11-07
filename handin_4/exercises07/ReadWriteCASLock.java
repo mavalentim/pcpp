@@ -1,5 +1,24 @@
 // For week 7
 // raup@itu.dk * 10/10/2021
+/*
+ * To implement a working ReadWriteCASLock you must implement 
+ * the reader list as an immutable linked list.
+
+Add a constructor with the following signature:
+ReaderList(Thread t, ReaderList tail)
+
+Use this constructor to create a new larger instead of using your add method.
+
+To implement the contains method, you should check if the head 
+contains the thread.
+If it does not, then make a recursive call to check if the rest of the 
+list contains the thread (remember to handle the case where next is null)
+
+For remove, you must check if the thread t to be removed is in the head.
+If it isn't then create a new ReaderList like this:
+new ReaderList(this.thread, remove(next)).
+Again, remember to handle the case where next is null.
+ */
 
 package exercises07;
 
@@ -22,26 +41,30 @@ class ReadWriteCASLock implements SimpleRWTryLockInterface {
       ReaderList expectedOldReaderList = null;
       ReaderList updatedReaderList = null;
 
-      do {
-        // this has to be repeated in case theres another ReaderList being written
-        thisThread = Thread.currentThread();
-        thisThreadReaderList = new ReaderList();
-        thisThreadReaderList.add(thisThread); // set with only this thread
-        Holders currentHolder = holder.get(); // idk if its another reader holding this
-        if (currentHolder instanceof ReaderList) { // if theres already a set of threads there
-          // then i can cast it
-          expectedOldReaderList = (ReaderList) currentHolder;
-          updatedReaderList = (ReaderList) currentHolder;
-          // and add this readerList
-          updatedReaderList.add(thisThread);
+      // do {
+      // this has to be repeated in case theres another ReaderList being written
+      thisThread = Thread.currentThread();
+      Holders currentHolder = holder.get(); // idk if its another reader holding this
+      thisThreadReaderList = new ReaderList(thisThread, currentHolder);
+      if (Holders.contains(thisThread, currentHolder))
+        throw new RuntimeException("Lock has already been acquired");
+      return holder.compareAndSet(currentHolder, thisThreadReaderList);
+      // thisThreadReaderList.add(thisThread); // set with only this thread
+      // if (currentHolder instanceof ReaderList) { // if theres already a set of
+      // threads there
+      // then i can cast it
+      // expectedOldReaderList = (ReaderList) currentHolder;
+      // updatedReaderList = (ReaderList) currentHolder;
+      // and add this readerList
+      // updatedReaderList.add(thisThread);
 
-        }
+      // }
 
-        // i have to do the old one stuff again
+      // i have to do the old one stuff again
 
-      } while (holder.compareAndSet(null, thisThreadReaderList)
-          || holder.compareAndSet(expectedOldReaderList, updatedReaderList));
-      return true;
+      // } while (holder.compareAndSet(null, thisThreadReaderList)
+      // || holder.compareAndSet((expectedOldReaderList, updatedReaderList));
+      // return true;
     }
     return false;
 
@@ -49,16 +72,18 @@ class ReadWriteCASLock implements SimpleRWTryLockInterface {
 
   public void readerUnlock() {
 
-    ReaderList newestReaderList = null;
+    ReaderList newestReaderList = (ReaderList) holder.get();;
     ReaderList updatedReaderList = null;
     do {
       Thread thisThread = Thread.currentThread();
       Holders currentHolder = holder.get();
-      if (currentHolder instanceof ReaderList) {
-        newestReaderList = (ReaderList) currentHolder;
-        updatedReaderList = (ReaderList) currentHolder; // newest readerlist we know
+      if (currentHolder instanceof ReaderList || Holders.contains(thisThread, currentHolder)) {
+        //newestReaderList = (ReaderList) currentHolder;
+        updatedReaderList = (ReaderList) ReaderList.remove(thisThread, currentHolder); 
+        // newest readerlist we know
 
-        updatedReaderList.remove(thisThread);
+        //updatedReaderList.remove(thisThread);
+
 
       }
 
@@ -85,6 +110,67 @@ class ReadWriteCASLock implements SimpleRWTryLockInterface {
       throw new Exception("not my lock");
     }
 
+  }
+
+  private static abstract class Holders {
+    abstract Thread getThread();
+
+    abstract Holders getNext();
+
+    public static boolean contains(Thread t, Holders list) {
+      Holders next = list;
+      do {
+        if (next.getThread() == t)
+          return true;
+        next = list.getNext();
+      } while (next != null);
+      return false;
+    }
+
+    public static Holders remove(Thread t, Holders list) {
+      Holders oldList = list;
+      Holders newList = null;
+      do {
+        if (!(oldList.getThread() == t))
+          newList = new ReaderList(oldList.getThread(), newList);
+        oldList = oldList.getNext();
+      } while (oldList != null);
+      return newList;
+    }
+  }
+
+  private static class ReaderList extends Holders {
+    private final Thread thread;
+    private final ReaderList next;
+
+    public ReaderList(Thread t, Holders tail) {
+      this.thread = t;
+      this.next = (ReaderList) tail;
+    }
+
+    public ReaderList getNext() {
+      return next;
+    }
+
+    public Thread getThread() {
+      return thread;
+    }
+  }
+
+  private static class Writer extends Holders {
+    public final Thread thread;
+
+    public Writer(Thread t) {
+      this.thread = t;
+    }
+
+    public Thread getThread() {
+      return thread;
+    }
+
+    public Writer getNext() {
+      return null;
+    }
   }
 
 }

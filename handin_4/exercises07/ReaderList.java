@@ -3,36 +3,63 @@ package exercises07;
 import java.util.HashSet;
 
 public class ReaderList extends Holders {
-    public HashSet<Thread> readers;
-
-    public ReaderList() {
-        readers = new HashSet<>();
-    }
-
-    public void add(Thread thread) {
-        readers.add(thread);
-    }
-
-    public void remove(Thread thread) {
-        readers.remove(thread);
-    }
+    private final Thread thread;
+    private final ReaderList next;
+    private final ReaderList previous;
 
     /*
-     * public ReaderList(Thread thread) {
-     * this.thread = thread;
-     * this.next = null;
-     * }
-     * 
-     * public void add(ReaderList newThread) {
-     * next = new ReaderList(thread);
-     * }
-     * 
-     * public void remove(ReaderList tobeRemoved) {
-     * while (this.next != null) {
-     * if (thread.equals(tobeRemoved.thread)) {
-     * 
-     * }
-     * }
+     * public ReaderList(ReaderList tail, ReaderList previous) {
+     * this.thread = null;
+     * this.next = (ReaderList) tail;
+     * this.previous = previous;
      * }
      */
+
+    public ReaderList(Thread t, Holders tail) {
+        this.thread = t;
+        this.next = (ReaderList) tail;
+        this.previous = null;
+    }
+
+    public ReaderList getNext() {
+        return next;
+    }
+
+    public ReaderList getPrevious() {
+        return previous;
+    }
+
+    public Thread getThread() {
+        return thread;
+    }
+
+    public boolean contains1(Thread t) {
+        while (this.getNext() != null) {
+            if (this.getThread() == t) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean contains2(Thread t) {
+        if (this.getThread() == t) {
+            return true;
+        }
+        return this.getNext().getThread() == t;
+    }
+
+    public ReaderList remove(Thread t) {
+        if (this.thread == t) {
+            return this.getNext();
+        }
+
+        if (this.thread == null) {
+            return this;
+        }
+
+        return new ReaderList(t, this.getNext().remove(t));
+
+    }
+
 }
