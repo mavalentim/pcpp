@@ -33,61 +33,46 @@ class ReadWriteCASLock implements SimpleRWTryLockInterface {
 
   public boolean readerTryLock() {
     // had to declare them before
-    Thread thisThread;
-    ReaderList thisThreadReaderList;
+    Thread thisThread = Thread.currentThread();
 
-    if (!(holder.get() instanceof Writer)) { // if didnt get the lock cause theres a writer, quit, if because theres a
-                                             // reader dont quit
-      ReaderList expectedOldReaderList = null;
-      ReaderList updatedReaderList = null;
+    ReaderList expectedOldReaderList;
+    ReaderList updatedReaderList;
 
-      // do {
-      // this has to be repeated in case theres another ReaderList being written
-      thisThread = Thread.currentThread();
-      Holders currentHolder = holder.get(); // idk if its another reader holding this
-      thisThreadReaderList = new ReaderList(thisThread, currentHolder);
-      if (Holders.contains(thisThread, currentHolder))
-        throw new RuntimeException("Lock has already been acquired");
-      return holder.compareAndSet(currentHolder, thisThreadReaderList);
-      // thisThreadReaderList.add(thisThread); // set with only this thread
-      // if (currentHolder instanceof ReaderList) { // if theres already a set of
-      // threads there
-      // then i can cast it
-      // expectedOldReaderList = (ReaderList) currentHolder;
-      // updatedReaderList = (ReaderList) currentHolder;
-      // and add this readerList
-      // updatedReaderList.add(thisThread);
+    do {
+      Holder currHolder = holder.get();
+      if (currHolder instanceof ReaderList) {
+        expectedOldReaderList = (ReaderList) currHolder;
+        updatedReaderList = new ReaderList(thisThread, expectedOldReaderList);
+      } else {
+        return false;
+      }
+    } while (!holder.compareAndSet(expectedOldReaderList, updatedReaderList));
 
-      // }
-
-      // i have to do the old one stuff again
-
-      // } while (holder.compareAndSet(null, thisThreadReaderList)
-      // || holder.compareAndSet((expectedOldReaderList, updatedReaderList));
-      // return true;
-    }
-    return false;
+    return true;
 
   }
 
   public void readerUnlock() {
+    // things that dont change go first
+    Thread thisThread = Thread.currentThread();
 
-    ReaderList newestReaderList = (ReaderList) holder.get();;
     ReaderList updatedReaderList = null;
     do {
-      Thread thisThread = Thread.currentThread();
-      Holders currentHolder = holder.get();
-      if (currentHolder instanceof ReaderList || Holders.contains(thisThread, currentHolder)) {
-        //newestReaderList = (ReaderList) currentHolder;
-        updatedReaderList = (ReaderList) ReaderList.remove(thisThread, currentHolder); 
-        // newest readerlist we know
 
-        //updatedReaderList.remove(thisThread);
+      Holder currHolder = holder.get();
+      if (currHolder instanceof ReaderList) {
+        ReaderList expectedOldReaderList = (ReaderList) currHolder;
+        if (expectedOldReaderList.contains1(thisThread)) { // should only remove if it contains
+          updatedReaderList = expectedOldReaderList.remove(thisThread);
+        }
+        throw new Exception("i cant unlock if i havent locked");
 
-
+      } else { // not an instance of readerList means theres writer, this method should only
+               // return then
+        return;
       }
 
-    } while (holder.compareAndSet(newestReaderList, updatedReaderList));
+    } while (!holder.compareAndSet(certifiedRL_currentHolder, updatedReaderList));
 
   }
 
@@ -110,67 +95,6 @@ class ReadWriteCASLock implements SimpleRWTryLockInterface {
       throw new Exception("not my lock");
     }
 
-  }
-
-  private static abstract class Holders {
-    abstract Thread getThread();
-
-    abstract Holders getNext();
-
-    public static boolean contains(Thread t, Holders list) {
-      Holders next = list;
-      do {
-        if (next.getThread() == t)
-          return true;
-        next = list.getNext();
-      } while (next != null);
-      return false;
-    }
-
-    public static Holders remove(Thread t, Holders list) {
-      Holders oldList = list;
-      Holders newList = null;
-      do {
-        if (!(oldList.getThread() == t))
-          newList = new ReaderList(oldList.getThread(), newList);
-        oldList = oldList.getNext();
-      } while (oldList != null);
-      return newList;
-    }
-  }
-
-  private static class ReaderList extends Holders {
-    private final Thread thread;
-    private final ReaderList next;
-
-    public ReaderList(Thread t, Holders tail) {
-      this.thread = t;
-      this.next = (ReaderList) tail;
-    }
-
-    public ReaderList getNext() {
-      return next;
-    }
-
-    public Thread getThread() {
-      return thread;
-    }
-  }
-
-  private static class Writer extends Holders {
-    public final Thread thread;
-
-    public Writer(Thread t) {
-      this.thread = t;
-    }
-
-    public Thread getThread() {
-      return thread;
-    }
-
-    public Writer getNext() {
-      return null;
-    }
   }
 
 }

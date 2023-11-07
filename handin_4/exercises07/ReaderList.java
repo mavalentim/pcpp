@@ -42,12 +42,14 @@ public class ReaderList extends Holders {
         return false;
     }
 
-    public boolean contains2(Thread t) {
-        if (this.getThread() == t) {
-            return true;
-        }
-        return this.getNext().getThread() == t;
-    }
+    /*
+     * public boolean contains2(Thread t) {
+     * if (this.getThread() == t) {
+     * return true;
+     * }
+     * return this.getNext().getThread() == t;
+     * }
+     */
 
     public ReaderList remove(Thread t) {
         if (this.thread == t) {
