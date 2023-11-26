@@ -56,7 +56,7 @@ public class MobileApp extends AbstractBehavior<MobileApp.MobileAppCommand> {
   @Override
   public Receive<MobileAppCommand> createReceive() {
     return newReceiveBuilder()
-        // To be implemented
+        .onMessage(MakePayments.class, this::onMakePayments)
         .build();
   }
 
@@ -68,8 +68,20 @@ public class MobileApp extends AbstractBehavior<MobileApp.MobileAppCommand> {
      * getContext().getSelf().path().name(),
      * msg.ref.path().name());
      */
-    make_payments_message.bank.tell(new Transfer(make_payments_message.from,
-        make_payments_message.to, make_payments_message.value));
+    // System.out.println("pei pei");
+    for (int i = 0; i < 100; i++) {
+      Random random = new Random();
+      int randomDouble = random.nextInt(1000);
+      make_payments_message.bank.tell(new Transfer(make_payments_message.from, make_payments_message.to, randomDouble));
+      System.out.println("pei pei");
+    }
+
+    /*
+     * new Random().ints(100).forEach(
+     * x -> make_payments_message.bank.tell(new Transfer(make_payments_message.from,
+     * make_payments_message.to, x)));
+     */
+
     return this;
   }
 }
