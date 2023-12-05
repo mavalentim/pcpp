@@ -60,7 +60,7 @@ public class Server extends AbstractBehavior<Server.ServerCommand> {
 	Stack<ActorRef<Client.ClientCommand>> pendingClients;
 
 	// HashMap to keep track of the workers and their status
-	HashMap<ActorRef<Worker.WorkerCommand>, Boolean> available_workers;
+	// HashMap<ActorRef<Worker.WorkerCommand>, Boolean> available_workers;
 	Stack<ActorRef<Worker.WorkerCommand>> avWorks;
 	HashMap<ActorRef<WorkerCommand>, Task> jobsInProgress;
 	HashMap<ActorRef<WorkerCommand>, ActorRef<Client.ClientCommand>> jobsInProgress2;
@@ -155,30 +155,24 @@ public class Server extends AbstractBehavior<Server.ServerCommand> {
 	public Behavior<ServerCommand> onChildFailed(ChildFailed signal) {
 		ActorRef<Void> actorFailed = signal.getRef();
 		System.out.println(actorFailed + " failed! :((");
-
-		// get the task AND THE CLIENT that was not finished
-
-		Task incompleteTask = jobsInProgress.remove(actorFailed);
-		ActorRef<Client.ClientCommand> incompleteClient = jobsInProgress2.remove(actorFailed);
-		Random randomgen = new Random();
-		int newnametag = randomgen.nextInt();
+		// create new worker
 		ActorRef<Worker.WorkerCommand> worker = getContext().spawn(Worker.create(getContext().getSelf()),
-				getContext().getSelf().path().name() + newnametag);
+				"replaceWorker" + "-" + existantWorkers);
 		getContext().watch(worker);
-
-		worker.tell(new ComputeTask(incompleteTask, incompleteClient));
+		// push it to available workers
+		avWorks.push(worker);
+		// worker.tell(new ComputeTask(incompleteTask, incompleteClient));
 
 		return this;
 	}
 
 	public Behavior<ServerCommand> onWorkDone(WorkDone msg) {
-		/*
-		 * if (!pendingTasks.isEmpty()) {
-		 * msg.worker.tell(new ComputeTask(pendingTasks.pop(), pendingClients.pop()));
-		 * } else {
-		 * avWorks.push(msg.worker);
-		 * }
-		 */
+
+		if (!pendingTasks.isEmpty()) {
+			msg.worker.tell(new ComputeTask(pendingTasks.pop(), pendingClients.pop()));
+		} else {
+			avWorks.push(msg.worker);
+		}
 
 		return this;
 	}
